@@ -14,6 +14,7 @@ namespace Unity7Net10
     {
         internal const string ActivationDefine = "UNITY7_NET10_ENABLED";
         internal const string ResponseMarker = "/define:UNITY7_NET10";
+        internal const string LanguageVersion = "14.0";
 
         internal static string ToolDirectory => Path.Combine(Path.GetDirectoryName(Application.dataPath), ".unity7-net10");
 
@@ -21,7 +22,13 @@ namespace Unity7Net10
 
         static Net10Bootstrap()
         {
-            // Configured projects reinstall the hook before enabling modern source after startup.
+            // Compilation can start before delayCall after a domain reload (including player builds).
+            // Reinstall the hook synchronously; defer settings changes until the Editor is ready.
+            if (File.Exists(Path.Combine(ToolDirectory, "profile.json")))
+            {
+                InstallCompilationHook();
+            }
+
             EditorApplication.delayCall += Initialize;
             EditorApplication.quitting += OnQuitting;
         }
@@ -59,10 +66,7 @@ namespace Unity7Net10
             File.WriteAllLines(Path.Combine(ToolDirectory, "references.rsp"), Directory.GetFiles(config.referencePack, "*.dll")
                 .OrderBy(Path.GetFileName, StringComparer.Ordinal).Select(path => "/reference:\"" + path + "\""));
 
-            var type = typeof(CompilationPipeline).Assembly.GetType("UnityEditor.Scripting.ScriptCompilation.EditorCompilation");
-            var program = type.GetProperty("ScriptCompilationBuildProgram", BindingFlags.Static | BindingFlags.Public).GetValue(null);
-            var arguments = (string[])program.GetType().GetField("<AlwaysArguments>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(program);
-            arguments[0] = "\"" + Path.Combine(ToolDirectory, "Unity7Net10.BuildProgram.dll") + "\"";
+            InstallCompilationHook();
 
             var defines = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.Standalone).Split(';').Where(value => !string.IsNullOrEmpty(value)).ToList();
             if (!defines.Contains(ActivationDefine))
@@ -72,6 +76,14 @@ namespace Unity7Net10
                 PlayerSettings.SetScriptingDefineSymbols(NamedBuildTarget.Standalone, defines.ToArray());
                 CompilationPipeline.RequestScriptCompilation(RequestScriptCompilationOptions.CleanBuildCache);
             }
+        }
+
+        private static void InstallCompilationHook()
+        {
+            var type = typeof(CompilationPipeline).Assembly.GetType("UnityEditor.Scripting.ScriptCompilation.EditorCompilation");
+            var program = type.GetProperty("ScriptCompilationBuildProgram", BindingFlags.Static | BindingFlags.Public).GetValue(null);
+            var arguments = (string[])program.GetType().GetField("<AlwaysArguments>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(program);
+            arguments[0] = "\"" + Path.Combine(ToolDirectory, "Unity7Net10.BuildProgram.dll") + "\"";
         }
 
         private static void OnQuitting()

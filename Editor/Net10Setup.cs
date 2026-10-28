@@ -72,7 +72,7 @@ namespace Unity7Net10
                 Environment.NewLine,
                 Net10Bootstrap.ResponseMarker,
                 "@\".unity7-net10/references.rsp\"",
-                "/langversion:11.0",
+                "/langversion:" + Net10Bootstrap.LanguageVersion,
                 string.Empty);
             foreach (var assetPath in selected)
             {
@@ -109,6 +109,15 @@ namespace Unity7Net10
             foreach (var assetPath in marked)
             {
                 var path = FullPath(assetPath);
+                var response = Path.Combine(Path.GetDirectoryName(path), "csc.rsp");
+                var lines = File.ReadAllLines(response);
+                if (lines.Any(line => line.Trim() == "/langversion:11.0"))
+                {
+                    Backup(response);
+                    File.WriteAllLines(response, lines.Select(line => line.Trim() == "/langversion:11.0"
+                        ? "/langversion:" + Net10Bootstrap.LanguageVersion : line));
+                }
+
                 var definition = JsonNode.Parse(File.ReadAllText(path));
                 if (definition["name"].GetValue<string>() == "Unity7Net10.Setup.Editor")
                 {

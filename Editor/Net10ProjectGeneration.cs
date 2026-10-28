@@ -78,7 +78,7 @@ namespace Unity7Net10
 
             var properties = new XElement("PropertyGroup",
                 new XElement("TargetFramework", "net10.0"),
-                new XElement("LangVersion", "11.0"),
+                new XElement("LangVersion", Net10Bootstrap.LanguageVersion),
                 new XElement("EnableDefaultItems", "false"),
                 new XElement("GenerateAssemblyInfo", "false"),
                 new XElement("GenerateTargetFrameworkAttribute", "false"),
